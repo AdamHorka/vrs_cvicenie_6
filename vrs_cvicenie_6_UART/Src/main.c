@@ -1,27 +1,14 @@
-/* USER CODE BEGIN Header */
-/**
-  ******************************************************************************
-  * @file           : main.c
-  * @brief          : Main program body
-  ******************************************************************************
-  * @attention
-  *
-  * <h2><center>&copy; Copyright (c) 2019 STMicroelectronics.
-  * All rights reserved.</center></h2>
-  *
-  * This software component is licensed by ST under BSD 3-Clause license,
-  * the "License"; You may not use this file except in compliance with the
-  * License. You may obtain a copy of the License at:
-  *                        opensource.org/licenses/BSD-3-Clause
-  *
-  ******************************************************************************
-  */
-/* USER CODE END Header */
+//zadanie c.5 Horka Forintova
 
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
+
+char check1[4] = "ledO";
+char on[4] = {'O', 'N', '\n'};
+char off[5] = {'O', 'F', 'F', '\n'};
+uint8_t led = 0;
 
 
 void SystemClock_Config(void);
@@ -43,14 +30,27 @@ int main(void)
 
   USART2_RegisterCallback(process_serial_data);
 
-  char tx_data = 'a';
 
   while (1)
   {
-	  LL_USART_TransmitData8(USART2, tx_data++);
-	  tx_data == ('z' + 1) ? tx_data = 'a' : tx_data;
+	  if(led == 1)
+	  {
+		  for(int i=0; i<3;i++)
+		  {
+		  LL_USART_TransmitData8(USART2, on[i]);
+		  LL_mDelay(100);
+		  }
+	  }
 
-	  LL_mDelay(50);
+	  else if(led == 0)
+	  {
+		  for(int i=0; i<4;i++){
+		  LL_USART_TransmitData8(USART2, off[i]);
+		  LL_mDelay(100);
+		  }
+	  }
+	  LL_USART_TransmitData8(USART2, '\r');
+	  LL_mDelay(5000); //5s delay
   }
 }
 
@@ -89,29 +89,62 @@ void SystemClock_Config(void)
   LL_SetSystemCoreClock(8000000);
 }
 
-
 void process_serial_data(uint8_t ch)
 {
-	static uint8_t count = 0;
+	static uint8_t count1 = 0;
+	static uint8_t count2 = 0;
 
-	if(ch == 'a')
+
+	if(ch == check1[count1])
 	{
-		count++;
+		count1++;
+	}
 
-		if(count >= 3)
+	else if((ch == 'N') && (count1 == 4))
+	{
+		LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_3);
+		led = 1;
+		count1 = 0;
+		count2 = 0;
+	}
+
+	else if((ch == 'F') && (count1 >= 4))
+	{
+		count2++;
+
+		if(count2 == 2)
 		{
-			if((LL_GPIO_ReadInputPort(GPIOB) & (1 << 3)) >> 3)
-			{
-				LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_3);
-			}
-			else
-			{
-				LL_GPIO_SetOutputPin(GPIOB, LL_GPIO_PIN_3);
-			}
+			LL_GPIO_ResetOutputPin(GPIOB, LL_GPIO_PIN_3);
+			led = 0;
+			count1 = 0;
+			count2 = 0;
+		}
 
-			count = 0;
+		if((count2 == 1) && (ch != 'F'))
+		{
+			count1=0;
+			count2=0;
+
+			if(ch == check1[count1])
+			{
+				count1++;
+			}
 			return;
 		}
+	}
+
+	else if(count1 >= 1 && ((ch == '\n')||(ch == '\r')||(ch == ' ')))
+	{}
+
+	else
+	{
+		count1=0;
+
+		if(ch == check1[count1])
+		{
+			count1++;
+		}
+		return;
 	}
 }
 
